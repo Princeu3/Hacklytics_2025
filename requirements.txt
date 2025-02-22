@@ -46,3 +46,5 @@ typing-inspect==0.9.0
 typing_extensions==4.12.2
 urllib3==2.3.0
 yarl==1.18.3
+opencv-python==4.10.0.84
+fastapi==0.115.4
