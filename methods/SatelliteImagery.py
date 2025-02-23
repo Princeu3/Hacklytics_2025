@@ -66,3 +66,17 @@ class SatelliteDamage:
             finding = "Analysis of satellite imagery is inconclusive."
 
         return finding
+    
+
+if __name__ == "__main__":
+    config = {
+        "img_path": "temp_uploads/satellite_image.jpg",
+        "gmaps_api_key": "AIzaSyB1-wKXQZQZQZQZQZQZQZQZQZQZQZQZQ",
+        "roboflow_api_key": "roboflow_api_key",
+    }
+    address = "123 Main St, Anytown, USA"
+    satellite = SatelliteDamage(config, address)
+    satellite.run()
+
+    print(satellite.run())
+
