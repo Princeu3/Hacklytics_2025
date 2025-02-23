@@ -124,7 +124,7 @@ def analyze_property_video(
 
 # Example usage
 if __name__ == "__main__":
-    api_key = "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"
+    api_key = "api_key"
     video_path = "6694066-uhd_3840_2160_30fps.mp4"
     
     print("Analyzing video for property damage...")

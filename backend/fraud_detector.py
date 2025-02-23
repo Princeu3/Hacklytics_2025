@@ -211,7 +211,7 @@ def analyze_insurance_claim(folder_path: str, api_key: str) -> Dict[str, Any]:
 
 if __name__ == "__main__":
     # Configuration
-    GROQ_API_KEY = "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"
+    GROQ_API_KEY = "api_key"
     FOLDER_PATH = "./Images and Videos"
     
     # Ensure folder exists

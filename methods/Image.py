@@ -25,7 +25,7 @@ def analyze_property_damage(image_path: str, api_key: str) -> Dict[str, any]:
     try:
         base64_image = encode_image(image_path)
         
-        client = Groq(api_key="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")
+        client = Groq(api_key="")
         
         # Enhanced prompt to include damage details
         prompt = """Analyze this image carefully and answer these specific questions:
@@ -82,7 +82,7 @@ def analyze_property_damage(image_path: str, api_key: str) -> Dict[str, any]:
 
 # Example usage
 if __name__ == "__main__":
-    api_key = "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"
+    api_key = ""
     image_path = "Mold.png"
     
     result = analyze_property_damage(image_path, api_key)
