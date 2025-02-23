@@ -1,6 +1,7 @@
 import sys
 import os
 from typing import Dict, List, Any
+import re
 
 # Add the project root directory to Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -9,6 +10,7 @@ from methods.Image import analyze_property_damage
 from methods.ImageMetaData import ImageMetaData
 from methods.video_analysis import analyze_property_video
 from methods.VideoMetaData import VideoMetaData
+from methods.pdf_Parsing import extract_acroform_fields
 
 def process_files(folder_path: str, api_key: str) -> List[Dict[str, Any]]:
     """Process all files in the given folder and return analysis results."""
@@ -17,6 +19,7 @@ def process_files(folder_path: str, api_key: str) -> List[Dict[str, Any]]:
     # Supported file extensions
     image_extensions = {'.jpg', '.jpeg', '.png', '.heic'}
     video_extensions = {'.mp4', '.mov', '.avi'}
+    pdf_extensions = {'.pdf'}
     
     # Process each file in the folder
     for filename in os.listdir(folder_path):
@@ -47,6 +50,27 @@ def process_files(folder_path: str, api_key: str) -> List[Dict[str, Any]]:
                 # Get video metadata
                 file_result["metadata"] = VideoMetaData(file_path).get_video_metadata()
             
+            # Process PDFs
+            elif ext in pdf_extensions:
+                file_result["file_type"] = "pdf"
+                fields = extract_acroform_fields(file_path)
+                
+                # Format PDF results similar to other analyses
+                file_result["analysis_results"] = {
+                    "insured_name": fields.get("named insureds full namerow1") or fields.get("full namerow1"),
+                    "physical_address": fields.get("physical address of the insured propertyrow1") or fields.get("postal addressrow1"),
+                    "mobile_number": fields.get("text1") or fields.get("fill_24"),
+                    "email": fields.get("email"),
+                    "type_of_loss": fields.get("undefined_4"),
+                    "loss_description": fields.get("description of loss and damagesrow1"),
+                    "date_of_loss": _format_date_of_loss(
+                        fields.get("undefined_5"),
+                        fields.get("undefined_6"),
+                        fields.get("undefined_7")
+                    ),
+                    "damages_list": _extract_damages_list(fields)
+                }
+            
             results.append(file_result)
             
         except Exception as e:
@@ -54,6 +78,24 @@ def process_files(folder_path: str, api_key: str) -> List[Dict[str, Any]]:
             results.append(file_result)
     
     return results
+
+def _format_date_of_loss(month: str, day: str, year: str) -> str:
+    """Helper function to format date of loss."""
+    if month and day and year:
+        return f"{month.strip()}/{day.strip()}/{year.strip()}"
+    return None
+
+def _extract_damages_list(fields: Dict) -> List[str]:
+    """Helper function to extract and format damages list."""
+    damages = []
+    for key in fields:
+        if key.isdigit():
+            damage_text = fields[key]
+            if damage_text and damage_text.strip():
+                # Remove leading numbers and whitespace
+                cleaned_text = re.sub(r"^\d+\s*", "", damage_text.strip())
+                damages.append(cleaned_text)
+    return sorted(damages)
 
 if __name__ == "__main__":
     # Configuration
