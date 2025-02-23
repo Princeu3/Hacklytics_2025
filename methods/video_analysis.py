@@ -1,5 +1,5 @@
 import cv2
-from Image import analyze_property_damage
+from methods.Image import analyze_property_damage
 import os
 from typing import Dict, List
 import time
@@ -43,87 +43,72 @@ def analyze_property_video(
     api_key: str,
     frame_interval: int = 30,
     temp_dir: str = "temp_frames",
-    confidence_threshold: float = 0.8,  # Add early stopping threshold
-    max_consistent_frames: int = 3  # Number of consistent frames needed
+    max_consistent_frames: int = 3,
+    damage_threshold: float = 0.5
 ) -> Dict[str, any]:
     """
     Analyze a video for property damage by processing individual frames.
-    
-    Args:
-        video_path: Path to the video file
-        api_key: Groq API key
-        frame_interval: Extract one frame every N frames
-        temp_dir: Directory to temporarily store extracted frames
-        confidence_threshold: Threshold for early stopping
-        max_consistent_frames: Number of consistent frames needed for early stopping
     """
     try:
         # Extract frames from video
         frame_paths = extract_frames(video_path, temp_dir, frame_interval)
         
         if not frame_paths:
-            return {"success": False, "error": "No frames could be extracted", "frames_analyzed": 0}
+            return {"success": False, "error": "No frames could be extracted"}
         
         # Analysis variables
         frame_results = []
         total_frames = len(frame_paths)
-        consistent_damage_frames = 0
-        damage_confidence_sum = 0
+        consistent_frames = 0
+        damage_count = 0
         
         # Process frames with progress indicator
         print(f"\nProcessing {total_frames} frames...")
         for idx, frame_path in enumerate(frame_paths, 1):
             print(f"Analyzing frame {idx}/{total_frames}", end='\r')
             
-            result = analyze_property_damage(
-                frame_path, 
-                api_key
-            )
-            
+            result = analyze_property_damage(frame_path, api_key)
             frame_results.append(result)
-            damage_confidence_sum += result.get("damage_confidence", 0)
             
-            # Early stopping if we have consistent high-confidence damage detection
-            if result.get("has_damage") and result.get("damage_confidence", 0) > confidence_threshold:
-                consistent_damage_frames += 1
-                if consistent_damage_frames >= max_consistent_frames:
-                    print("\nHigh confidence damage detected - stopping early")
+            # Count frames with damage
+            if result.get("has_damage"):
+                damage_count += 1
+            
+            # Early stopping if we have consistent results
+            if result.get("has_damage") and result.get("is_house"):
+                consistent_frames += 1
+                if consistent_frames >= max_consistent_frames:
+                    print("\nConfident results obtained - stopping early")
                     break
             else:
-                consistent_damage_frames = 0
+                consistent_frames = 0
             
             time.sleep(0.5)  # API rate limit
         
-        # Aggregate results with probabilities
+        # Aggregate results
         frames_analyzed = len(frame_results)
-        damage_probability = damage_confidence_sum / frames_analyzed
-        house_detected = any(result["is_house"] for result in frame_results)
-        damage_detected = any(result["has_damage"] for result in frame_results)
+        is_house = any(result["is_house"] for result in frame_results)
         
-        # Collect unique damage types with confidence scores
-        damage_types = {}
+        # Determine if the video has damage based on the threshold
+        has_damage = (damage_count / frames_analyzed) >= damage_threshold
+        
+        # Collect unique damage types directly from the model
+        damage_types = set()
         for result in frame_results:
             if result["has_damage"] and result["damage_details"] != "N/A":
-                damage_type = result["damage_details"]
-                confidence = result.get("damage_confidence", 0)
-                if damage_type in damage_types:
-                    damage_types[damage_type] = max(damage_types[damage_type], confidence)
-                else:
-                    damage_types[damage_type] = confidence
+                damage_types.add(result["damage_details"])
         
         return {
             "success": True,
             "frames_analyzed": frames_analyzed,
             "total_frames": total_frames,
-            "is_house_video": house_detected,
-            "has_damage": damage_detected,
-            "damage_probability": round(damage_probability, 2),
-            "damage_types": [{"type": k, "confidence": round(v, 2)} for k, v in damage_types.items()],
-            "frame_by_frame_results": frame_results
+            "is_house_video": is_house,
+            "has_damage": has_damage,
+            "damage_types": sorted(list(damage_types))
         }
         
     except Exception as e:
-        return {"success": False, "error": str(e), "frames_analyzed": 0}
+        return {"success": False, "error": str(e)}
     finally:
         # Cleanup temporary frames
         if os.path.exists(temp_dir):
@@ -140,19 +125,17 @@ def analyze_property_video(
 # Example usage
 if __name__ == "__main__":
     api_key = "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"
-    video_path = "SampleVideo.MOV"
+    video_path = "6694066-uhd_3840_2160_30fps.mp4"
     
     print("Analyzing video for property damage...")
     results = analyze_property_video(video_path, api_key)
     
     if results["success"]:
-        print(f"\nAnalysis completed! Processed {results['frames_analyzed']} out of {results['total_frames']} frames")
-        print(f"Is this a video of a house? {'Yes' if results['is_house_video'] else 'No'}")
-        print(f"Overall damage probability: {results['damage_probability']*100:.1f}%")
+        print(f"\nAnalysis completed!")
+        print(f"House: {'Yes' if results['is_house_video'] else 'No'}")
+        print(f"Damage: {'Yes' if results['has_damage'] else 'No'}")
         
         if results["has_damage"]:
-            print("\nTypes of damage detected:")
-            for damage_info in results["damage_types"]:
-                print(f"- {damage_info['type']} (Confidence: {damage_info['confidence']*100:.1f}%)")
+            print("Damage types:", ", ".join(results["damage_types"]))
     else:
         print(f"Error analyzing video: {results['error']}") 
