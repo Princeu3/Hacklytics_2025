@@ -1,7 +1,7 @@
 import os
 from typing import Dict, List, Any
 from groq import Groq
-from Judge import process_files
+from backend.Judge import process_files
 
 class FraudAnalyzer:
     def __init__(self, groq_api_key: str):

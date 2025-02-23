@@ -155,7 +155,7 @@ export default function Home() {
     if (!results) return null;
 
     const fraudAnalysis = results.fraud_analysis || {};
-    
+
     return (
       <div className="mt-12 bg-white rounded-xl shadow-lg p-6">
         <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Fraud Analysis Results</h2>
@@ -180,9 +180,16 @@ export default function Home() {
 
           {/* Analysis Summary */}
           <div className="mb-6">
-            <h4 className="text-lg font-semibold text-gray-700 mb-3">Analysis Summary</h4>
-            <p className="text-gray-600 mb-4">{fraudAnalysis.summary}</p>
-            
+            {/* <h4 className="text-lg font-semibold text-gray-700 mb-3">Analysis Summary</h4> */}
+            {/* <p className="text-gray-600 mb-4">{fraudAnalysis.summary}</p> */}
+            {/* Satellite Image Display */}
+          <div className="mt-8 mb-8">
+            <img 
+              src="uploads/satellite_image.jpg" 
+              alt="Satellite Image"
+              className="mx-auto rounded-lg shadow-lg max-w-full h-auto"
+            />
+          </div>
             {/* AI Model Analysis */}
             <div className="mt-6">
               <h4 className="text-lg font-semibold text-blue-700 mb-3">AI Model Analysis</h4>
@@ -232,14 +239,14 @@ export default function Home() {
         </div>
 
         {/* Claim Details */}
-        <div className="mt-8">
+        {/* <div className="mt-8">
           <h3 className="text-lg font-semibold text-gray-700 mb-4">Claim Processing Details</h3>
           <div className="bg-gray-50 rounded-lg p-4 overflow-auto">
             <pre className="whitespace-pre-wrap">
               {JSON.stringify(results.claim_details, null, 2)}
             </pre>
           </div>
-        </div>
+        </div> */}
       </div>
     );
   };

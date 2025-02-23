@@ -18,7 +18,7 @@ app.add_middleware(
 )
 
 # Define constant for upload directory
-UPLOAD_DIR = Path("./temp_uploads")
+UPLOAD_DIR = Path("./frontend/public/uploads")
 API_KEY = "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"
 
 # Create upload directory if it doesn't exist
@@ -77,6 +77,8 @@ async def process_files_endpoint(
 
         # Process the files using the fraud detector
         results = analyze_insurance_claim(str(UPLOAD_DIR), API_KEY)
+
+        satellite_image = UPLOAD_DIR / "satellite_image.jpg"
         
         # Extract fraud assessment details
         fraud_assessment = results.get("fraud_assessment", {})
@@ -92,6 +94,7 @@ async def process_files_endpoint(
                 "red_flags": [],
                 "recommendations": []
             },
+
             "claim_details": results.get("claim_processing_results", [])
         }
 
