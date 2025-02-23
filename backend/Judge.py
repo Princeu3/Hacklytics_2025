@@ -11,6 +11,7 @@ from methods.ImageMetaData import ImageMetaData
 from methods.video_analysis import analyze_property_video
 from methods.VideoMetaData import VideoMetaData
 from methods.pdf_Parsing import extract_acroform_fields
+from methods.SatelliteImagery import SatelliteDamage
 
 def process_files(folder_path: str, api_key: str) -> List[Dict[str, Any]]:
     """Process all files in the given folder and return analysis results."""
@@ -20,6 +21,31 @@ def process_files(folder_path: str, api_key: str) -> List[Dict[str, Any]]:
     image_extensions = {'.jpg', '.jpeg', '.png', '.heic'}
     video_extensions = {'.mp4', '.mov', '.avi'}
     pdf_extensions = {'.pdf'}
+    
+    # First find and process PDF to get the address
+    address = None
+    for filename in os.listdir(folder_path):
+        if filename.lower().endswith('.pdf'):
+            pdf_path = os.path.join(folder_path, filename)
+            fields = extract_acroform_fields(pdf_path)
+            address = fields.get("physical address of the insured propertyrow1") or fields.get("postal addressrow1")
+            break
+
+    # Configure satellite imagery
+    satellite_config = {
+        "roboflow_api_key": "HELG5IWgj8kH6gtq3ZE3",
+        "gmaps_api_key": "AIzaSyBImWOzs5sQJ9P2eipceflVVJhMoixLYxc",
+        "img_path": os.path.join(folder_path, "satellite_image.jpg")
+    }
+    
+    # Get satellite imagery analysis if address is available
+    satellite_results = None
+    if address:
+        try:
+            sd = SatelliteDamage(satellite_config, address)
+            satellite_results = sd.run()
+        except Exception as e:
+            satellite_results = {"error": str(e)}
     
     # Process each file in the folder
     for filename in os.listdir(folder_path):
@@ -68,7 +94,8 @@ def process_files(folder_path: str, api_key: str) -> List[Dict[str, Any]]:
                         fields.get("undefined_6"),
                         fields.get("undefined_7")
                     ),
-                    "damages_list": _extract_damages_list(fields)
+                    "damages_list": _extract_damages_list(fields),
+                    "satellite_analysis": satellite_results  # Add satellite analysis to PDF results
                 }
             
             results.append(file_result)
