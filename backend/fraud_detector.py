@@ -28,20 +28,39 @@ class FraudAnalyzer:
                         "content": """You are an expert insurance fraud investigator with decades of experience. 
                         Analyze the provided insurance claim data and determine if there are signs of fraud.
                         
-                        Consider the following factors:
-                        1. Consistency between satellite imagery and reported damage
-                        2. Timeline consistency across all evidence
-                        3. Metadata validation from images/videos
-                        4. Severity of damage correlation across different sources
-                        5. Weather data correlation with claimed damage
-                        6. Pattern recognition from historical claims
+                        Apply these specific fraud detection rules:
+                        1. Location Consistency:
+                           - For photo submissions: metadata addresses must match the form address
+                           - For video submissions: metadata addresses are usually not available, so we will use the form address
+                           - If multiple media files exist, all addresses must match closely with zip code.
+                           - Mismatched addresses strongly indicate fraud
+                        
+                        2. Structural Damage Verification:
+                           - Compare reported external damage against satellite imagery
+                           - Major discrepancies between reported and visible damage indicate potential fraud
+                        
+                        3. Damage Description Consistency:
+                           - Compare form descriptions with visual evidence in photos/videos
+                           - Inconsistencies in damage descriptions suggest fraudulent activity
+                        
+                        4. Temporal Analysis:
+                           - Media metadata dates must be within 2 weeks of reported incident date
+                           - Dates outside this window flag the claim as potentially invalid
+                           - Media dates preceding the incident date strongly indicate fraud
                         
                         Provide your analysis in the following format:
-                        - Fraud Probability Score (0-100)
-                        - Risk Level (Low/Medium/High)
-                        - Key Findings (bullet points)
-                        - Red Flags (if any)
-                        - Recommendations for Further Investigation
+                        
+                        Fraud Probability Score: [0-100]
+                        Risk Level: [Low/Medium/High]
+                        Analysis Summary: [Provide a concise explanation of why you believe this claim is or is not fraudulent, 
+                        citing specific evidence from the data provided. Focus on the most important discrepancies or validating factors.]
+                        
+                        For the Fraud Probability Score:
+                        - Address mismatches: +30-50 points
+                        - Satellite imagery contradictions: +20-40 points
+                        - Damage description inconsistencies: +15-30 points
+                        - Date discrepancies >2 weeks: +10-20 points
+                        - Media dates before incident: +40-60 points
                         """
                     },
                     {"role": "user", "content": prompt}
@@ -64,9 +83,8 @@ class FraudAnalyzer:
                 "error": str(e),
                 "fraud_probability": None,
                 "risk_level": None,
-                "key_findings": [],
-                "red_flags": [],
-                "recommendations": []
+                "analysis_summary": None,
+                "raw_analysis": None
             }
 
     def _create_analysis_prompt(self, claim_data: Dict[str, Any]) -> str:
@@ -85,6 +103,7 @@ class FraudAnalyzer:
         Date of Loss: {pdf_data.get('date_of_loss')}
         Type of Loss: {pdf_data.get('type_of_loss')}
         Description: {pdf_data.get('loss_description')}
+        Address: {pdf_data.get('physical_address')}
         
         REPORTED DAMAGES:
         ----------------
@@ -139,41 +158,21 @@ class FraudAnalyzer:
         import re
         
         # Extract probability score
-        probability_match = re.search(r'(?i)probability.*?(\d+)', analysis)
+        probability_match = re.search(r'(?i)fraud probability.*?(\d+)', analysis)
         probability = int(probability_match.group(1)) if probability_match else None
         
         # Extract risk level
-        risk_match = re.search(r'(?i)risk.*?(low|medium|high)', analysis)
+        risk_match = re.search(r'(?i)risk level.*?(low|medium|high)', analysis, re.IGNORECASE)
         risk_level = risk_match.group(1).capitalize() if risk_match else None
         
-        # Extract key findings
-        findings = []
-        red_flags = []
-        recommendations = []
-        
-        current_section = None
-        for line in analysis.split('\n'):
-            line = line.strip()
-            if 'key findings' in line.lower():
-                current_section = 'findings'
-            elif 'red flags' in line.lower():
-                current_section = 'flags'
-            elif 'recommendations' in line.lower():
-                current_section = 'recommendations'
-            elif line.startswith('-') or line.startswith('•'):
-                if current_section == 'findings':
-                    findings.append(line.lstrip('- •').strip())
-                elif current_section == 'flags':
-                    red_flags.append(line.lstrip('- •').strip())
-                elif current_section == 'recommendations':
-                    recommendations.append(line.lstrip('- •').strip())
+        # Extract analysis summary
+        summary_match = re.search(r'(?i)analysis summary:?(.*?)(?=\n\n|$)', analysis, re.DOTALL)
+        summary = summary_match.group(1).strip() if summary_match else None
         
         return {
             "fraud_probability": probability,
             "risk_level": risk_level,
-            "key_findings": findings,
-            "red_flags": red_flags,
-            "recommendations": recommendations,
+            "analysis_summary": summary,
             "raw_analysis": analysis
         }
 
@@ -233,14 +232,8 @@ if __name__ == "__main__":
     print(f"\nFraud Probability: {fraud_assessment['fraud_probability']}%")
     print(f"Risk Level: {fraud_assessment['risk_level']}")
     
-    print("\nKey Findings:")
-    for finding in fraud_assessment['key_findings']:
-        print(f"- {finding}")
+    print("\nAnalysis Summary:")
+    print(f"- {fraud_assessment['analysis_summary']}")
     
-    print("\nRed Flags:")
-    for flag in fraud_assessment['red_flags']:
-        print(f"- {flag}")
-    
-    print("\nRecommendations:")
-    for rec in fraud_assessment['recommendations']:
-        print(f"- {rec}") 
+    print("\nRaw Analysis:")
+    print(f"- {fraud_assessment['raw_analysis']}") 
