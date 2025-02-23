@@ -4,126 +4,128 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faImage, 
   faVideo, 
-  faFileAudio, 
   faFilePdf, 
   faUpload,
   faMagnifyingGlass,
-  faTrash,
+  faSpinner,
+  faExclamationCircle,
   faCheckCircle,
-  faExclamationCircle
+  faTrash
 } from '@fortawesome/free-solid-svg-icons';
-import { s3Services } from '../utils/s3Services';
+import { apiService } from '../utils/apiService';
 
 export default function Home() {
   const [files, setFiles] = useState({
     images: [],
     videos: [],
-    audio: [],
     pdfs: []
   });
-  const [uploading, setUploading] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
 
   const handleFileChange = (e, type) => {
     const selectedFiles = Array.from(e.target.files);
     setFiles(prev => ({
       ...prev,
-      [type]: selectedFiles
+      [type]: [...prev[type], ...selectedFiles]
     }));
     setError(null);
-    setSuccess(false);
+    setResults(null);
+  };
+
+  const removeFile = (type, index) => {
+    setFiles(prev => ({
+      ...prev,
+      [type]: prev[type].filter((_, i) => i !== index)
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setUploading(true);
-    setError(null);
-    setSuccess(false);
     
+    // Check if at least one file is selected
+    if (files.images.length === 0 && files.videos.length === 0 && files.pdfs.length === 0) {
+      setError('Please select at least one file for analysis');
+      return;
+    }
+
+    setAnalyzing(true);
+    setError(null);
+    setResults(null);
+
     try {
-      const uploadPromises = [];
-      const fileTypes = ['images', 'videos', 'audio', 'pdfs'];
-      
-      // Create upload promises for each file type
-      fileTypes.forEach(type => {
-        if (files[type].length > 0) {
-          const s3Type = type === 'pdfs' ? 'pdf' : type.slice(0, -1); // Convert plural to singular
-          uploadPromises.push(s3Services.uploadMultipleFiles(files[type], s3Type));
-        }
-      });
+      const result = await apiService.analyzeFraud(
+        files.images,
+        files.videos,
+        files.pdfs
+      );
 
-      if (uploadPromises.length === 0) {
-        throw new Error('Please select at least one file to upload');
-      }
-
-      // Wait for all uploads to complete
-      const results = await Promise.all(uploadPromises);
-      const uploadedUrls = results.flat();
+      setResults(result);
       
       // Clear file selections
       setFiles({
         images: [],
         videos: [],
-        audio: [],
         pdfs: []
       });
-      
-      // Update uploaded files list
-      setUploadedFiles(prev => [...prev, ...uploadedUrls]);
-      setSuccess(true);
-      
     } catch (error) {
-      console.error('Error in handleSubmit:', error);
-      setError(error.message || 'An error occurred during upload');
+      console.error('Analysis error:', error);
+      setError(error.message || 'An error occurred during analysis');
     } finally {
-      setUploading(false);
+      setAnalyzing(false);
     }
   };
 
-  const handleDelete = async (url) => {
-    try {
-      await s3Services.deleteFile(url);
-      setUploadedFiles(uploadedFiles.filter(f => f !== url));
-    } catch (error) {
-      setError('Failed to delete file: ' + error.message);
-    }
+  const renderFileList = (type) => {
+    if (files[type].length === 0) return null;
+
+    return (
+      <div className="mt-2">
+        <ul className="space-y-1">
+          {files[type].map((file, index) => (
+            <li key={index} className="flex items-center justify-between text-sm text-gray-600 bg-gray-50 p-2 rounded">
+              <span className="truncate">{file.name}</span>
+              <button
+                onClick={() => removeFile(type, index)}
+                className="text-red-500 hover:text-red-700 ml-2"
+              >
+                <FontAwesomeIcon icon={faTrash} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
   };
 
-  const getFileTypeFromUrl = (url) => {
-    const path = url.split('/');
-    return path[path.length - 2]; // Gets the type from the path structure type/filename
+  const renderResults = () => {
+    if (!results) return null;
+
+    return (
+      <div className="mt-12 bg-white rounded-xl shadow-lg p-6">
+        <h2 className="text-xl font-semibold text-gray-800 mb-6">Analysis Results</h2>
+        <pre className="bg-gray-50 rounded-lg p-4 overflow-auto">
+          {JSON.stringify(results, null, 2)}
+        </pre>
+      </div>
+    );
   };
 
-  const renderFilePreview = (url) => {
-    const type = getFileTypeFromUrl(url);
-    const fileName = url.split('/').pop();
+  const renderLoadingOverlay = () => {
+    if (!analyzing) return null;
 
-    switch (type) {
-      case 'image':
-        return <img src={url} alt={fileName} className="h-16 w-16 object-cover rounded" />;
-      case 'video':
-        return (
-          <video className="h-16 w-16 object-cover rounded">
-            <source src={url} type="video/mp4" />
-          </video>
-        );
-      case 'audio':
-        return (
-          <audio controls className="h-8 w-48">
-            <source src={url} type="audio/mpeg" />
-          </audio>
-        );
-      case 'pdf':
-        return (
-          <div className="h-16 w-16 flex items-center justify-center bg-red-100 rounded">
-            <FontAwesomeIcon icon={faFilePdf} className="text-red-500 text-xl" />
-          </div>
-        );
-      default:
-        return null;
-    }
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-8 text-center">
+          <FontAwesomeIcon 
+            icon={faSpinner} 
+            className="text-4xl text-blue-600 animate-spin mb-4" 
+          />
+          <p className="text-lg text-gray-700">Analyzing your files...</p>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -145,15 +147,8 @@ export default function Home() {
           </div>
         )}
 
-        {success && (
-          <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded relative">
-            <FontAwesomeIcon icon={faCheckCircle} className="mr-2" />
-            Files uploaded successfully!
-          </div>
-        )}
-
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-3 gap-6">
             {/* Image Input Card */}
             <div className="bg-white rounded-xl shadow-lg p-6 transform transition-all hover:scale-105">
               <div className="text-blue-500 mb-4">
@@ -175,9 +170,7 @@ export default function Home() {
                   <p className="text-sm text-blue-600">Drop images or click to upload</p>
                 </div>
               </div>
-              <p className="text-sm text-blue-500 mt-2">
-                Selected: {files.images.length} images
-              </p>
+              {renderFileList('images')}
             </div>
 
             {/* Video Input Card */}
@@ -201,35 +194,7 @@ export default function Home() {
                   <p className="text-sm text-blue-600">Drop videos or click to upload</p>
                 </div>
               </div>
-              <p className="text-sm text-blue-500 mt-2">
-                Selected: {files.videos.length} videos
-              </p>
-            </div>
-
-            {/* Audio Input Card */}
-            <div className="bg-white rounded-xl shadow-lg p-6 transform transition-all hover:scale-105">
-              <div className="text-blue-500 mb-4">
-                <FontAwesomeIcon icon={faFileAudio} size="2x" />
-              </div>
-              <label className="block mb-2 font-semibold text-gray-700">
-                Audio Files
-              </label>
-              <div className="relative">
-                <input
-                  type="file"
-                  accept="audio/*"
-                  multiple
-                  onChange={(e) => handleFileChange(e, 'audio')}
-                  className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
-                />
-                <div className="border-2 border-dashed border-blue-200 rounded-lg p-4 text-center hover:border-blue-400 transition-colors">
-                  <FontAwesomeIcon icon={faUpload} className="text-blue-400 mb-2" />
-                  <p className="text-sm text-blue-600">Drop audio or click to upload</p>
-                </div>
-              </div>
-              <p className="text-sm text-blue-500 mt-2">
-                Selected: {files.audio.length} audio files
-              </p>
+              {renderFileList('videos')}
             </div>
 
             {/* PDF Input Card */}
@@ -253,48 +218,28 @@ export default function Home() {
                   <p className="text-sm text-blue-600">Drop PDFs or click to upload</p>
                 </div>
               </div>
-              <p className="text-sm text-blue-500 mt-2">
-                Selected: {files.pdfs.length} PDFs
-              </p>
+              {renderFileList('pdfs')}
             </div>
           </div>
 
           <button
             type="submit"
-            disabled={uploading}
+            disabled={analyzing || (files.images.length === 0 && files.videos.length === 0 && files.pdfs.length === 0)}
             className={`w-full mt-8 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-6 rounded-xl 
                      shadow-lg hover:from-blue-600 hover:to-blue-700 transform transition-all hover:scale-105
                      flex items-center justify-center space-x-2 font-semibold
-                     ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                     ${(analyzing || (files.images.length === 0 && files.videos.length === 0 && files.pdfs.length === 0)) ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
-            <FontAwesomeIcon icon={uploading ? faUpload : faMagnifyingGlass} className={uploading ? 'animate-spin' : ''} />
-            <span>{uploading ? 'Uploading...' : 'Analyze Files for Fraud'}</span>
+            <FontAwesomeIcon 
+              icon={analyzing ? faSpinner : faMagnifyingGlass} 
+              className={analyzing ? 'animate-spin' : ''} 
+            />
+            <span>{analyzing ? 'Analyzing...' : 'Analyze Files for Fraud'}</span>
           </button>
         </form>
 
-        {uploadedFiles.length > 0 && (
-          <div className="mt-12 bg-white rounded-xl shadow-lg p-6">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">Uploaded Files</h2>
-            <div className="space-y-4">
-              {uploadedFiles.map((url, index) => (
-                <div key={index} className="flex items-center justify-between bg-gray-50 p-4 rounded-lg">
-                  <div className="flex items-center space-x-4">
-                    {renderFilePreview(url)}
-                    <span className="text-sm text-gray-600 truncate max-w-xs">
-                      {url.split('/').pop()}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => handleDelete(url)}
-                    className="text-red-500 hover:text-red-700 transition-colors"
-                  >
-                    <FontAwesomeIcon icon={faTrash} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {renderResults()}
+        {renderLoadingOverlay()}
       </div>
     </main>
   );
