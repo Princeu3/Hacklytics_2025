@@ -6,7 +6,7 @@ from backend.Judge import process_files
 class FraudAnalyzer:
     def __init__(self, groq_api_key: str):
         """Initialize the fraud analyzer with Groq API key."""
-        self.client = Groq(api_key="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")
+        self.client = Groq(api_key="")
         self.model = "llama-3.3-70b-versatile"
 
     def analyze_claim(self, claim_data: Dict[str, Any]) -> Dict[str, Any]:
