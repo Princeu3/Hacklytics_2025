@@ -28,7 +28,7 @@ def is_valid_mobile(number: str) -> bool:
     return len(digits) == 10
 
 def main():
-    pdf_path = "FORM-Dwelling-Property-ENG-9.2022.pdf"  # Update with your PDF file path
+    pdf_path = "FORM-Dwelling-Property-ENG-9.2022 copy 2.pdf"  # Update with your PDF file path
     fields = extract_acroform_fields(pdf_path)
     
     # Debug print: show all extracted form field keys and values
