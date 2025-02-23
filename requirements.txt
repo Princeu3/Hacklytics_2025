@@ -55,3 +55,4 @@ yarl==1.18.3
 opencv-python==4.10.0.84
 hachoir==3.3.0
 geopy==2.4.1
+PyPDF2==3.0.1
