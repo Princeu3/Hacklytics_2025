@@ -36,7 +36,7 @@ def analyze_property_damage(image_path: str, api_key: str) -> Dict[str, any]:
         Format your response exactly like this:
         HOUSE: Yes/No
         DAMAGE: Yes/No
-        DAMAGE_TYPE: [Detailed description of damage type, or N/A if no damage/not a house]
+        DAMAGE_TYPE: [brief description in 2 sentences of damage type and make sure to include the damage type, or N/A if no damage/not a house]
         """
 
         chat_completion = client.chat.completions.create(
