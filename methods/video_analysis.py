@@ -1,5 +1,5 @@
 import cv2
-from Image import analyze_property_damage
+from methods.Image import analyze_property_damage
 import os
 from typing import Dict, List
 import time
