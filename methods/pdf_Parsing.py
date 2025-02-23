@@ -32,9 +32,7 @@ def main():
     fields = extract_acroform_fields(pdf_path)
     
     # Debug print: show all extracted form field keys and values
-    print("Extracted form field keys and values:")
-    for key, value in fields.items():
-        print(f"{key}: {value}")
+    
     
     # Extract required fields using the known field names.
     insured_name = fields.get("named insureds full namerow1") or fields.get("full namerow1")
