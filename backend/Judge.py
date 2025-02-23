@@ -33,7 +33,7 @@ def process_files(folder_path: str, api_key: str) -> List[Dict[str, Any]]:
 
     # Configure satellite imagery
     satellite_config = {
-        "roboflow_api_key": "HELG5IWgj8kH6gtq3ZE3",
+        "groq_api_key": "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",
         "gmaps_api_key": "AIzaSyBImWOzs5sQJ9P2eipceflVVJhMoixLYxc",
         "img_path": os.path.join(folder_path, "satellite_image.jpg")
     }

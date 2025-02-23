@@ -1,5 +1,9 @@
 import requests
 from inference_sdk import InferenceHTTPClient
+from groq import Groq
+from PIL import Image
+import base64
+import io
 
 
 class SatelliteDamage:
@@ -29,43 +33,64 @@ class SatelliteDamage:
         print("Map image saved successfully!")
 
     def classify_image(self):
-        # instantiate roboflow api client object
-        CLIENT = InferenceHTTPClient(
-            api_url="https://detect.roboflow.com",
-            api_key=self.config.get("roboflow_api_key"),
+        # Initialize Groq client
+        client = Groq(api_key="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")
+
+        # Load and encode the image
+        with open(self.config.get("img_path"), "rb") as image_file:
+            image_data = image_file.read()
+            image_base64 = base64.b64encode(image_data).decode('utf-8')
+
+        # Prepare the prompt for damage assessment
+        prompt = """Analyze this satellite image and classify the property damage into one of these categories:
+        - no-damage
+        - minor-damage
+        - major-damage
+        - destroyed
+        
+        Only respond with one of these exact categories."""
+
+        # Call Llama vision model
+        completion = client.chat.completions.create(
+            model= "llama-3.2-90b-vision-preview",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{image_base64}"
+                            }
+                        }
+                    ]
+                }
+            ]
         )
 
-        # classify your image with the roboflow model for xBD
-        result = CLIENT.infer(self.config.get("img_path"), model_id="xview2-xbd/10")
-        predictions = result["predictions"]
-        if len(predictions) >= 1:
-            classification = predictions[0]["class"]
-        else:
+        # Get the classification from the response
+        classification = completion.choices[0].message.content.strip().lower()
+
+        # Validate if the response matches our expected categories
+        valid_categories = ["no-damage", "minor-damage", "major-damage", "destroyed"]
+        if classification not in valid_categories:
             classification = False
 
         return classification
 
     def run(self):
-
-        # download the image from gmaps and save as .jpg file
         self.get_image()
-
-        # use the satellite classification model to determine if the property is damaged.
         classification = self.classify_image()
-
-        # translate output of model to natural language for interpretation by LLM
-        if classification == "no-damage":
-            finding = "Analysis of satellite imagery shows no damage to the property."
-        elif classification == "minor-damage":
-            finding = "Analysis of satellite imagery shows minor damage to the property."
-        elif classification == "major-damage":
-            finding = "Analysis of satellite imagery shows major damage to the property."
-        elif classification == "destroyed":
-            finding = "Analysis of satellite imagery shows complete destruction of the property."
-        else:
-            finding = "Analysis of satellite imagery is inconclusive."
-
-        return finding
+        
+        findings = {
+            "no-damage": "Analysis of satellite imagery shows no damage to the property.",
+            "minor-damage": "Analysis of satellite imagery shows minor damage to the property.",
+            "major-damage": "Analysis of satellite imagery shows major damage to the property.",
+            "destroyed": "Analysis of satellite imagery shows complete destruction of the property."
+        }
+        
+        return findings.get(classification, "Analysis of satellite imagery is inconclusive.")
 
 # Move these outside the class
 if __name__ == "__main__":
@@ -78,7 +103,7 @@ if __name__ == "__main__":
     print(address)
     
     config = {
-        "roboflow_api_key": "HELG5IWgj8kH6gtq3ZE3",
+        "groq_api_key": "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",
         "gmaps_api_key": "AIzaSyBImWOzs5sQJ9P2eipceflVVJhMoixLYxc",
         "img_path": "Images and Videos/satellite_image.jpg"
     }

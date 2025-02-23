@@ -6,7 +6,7 @@ from Judge import process_files
 class FraudAnalyzer:
     def __init__(self, groq_api_key: str):
         """Initialize the fraud analyzer with Groq API key."""
-        self.client = Groq(api_key=groq_api_key)
+        self.client = Groq(api_key="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")
         self.model = "llama-3.3-70b-versatile"
 
     def analyze_claim(self, claim_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -31,9 +31,10 @@ class FraudAnalyzer:
                         Apply these specific fraud detection rules:
                         1. Location Consistency:
                            - For photo submissions: metadata addresses must match the form address
-                           - For video submissions: metadata addresses are usually not available, so we will use the form address
+                           - For video submissions: metadata addresses shouldn't be accounted for.
                            - If multiple media files exist, all addresses must match closely with zip code.
-                           - Mismatched addresses strongly indicate fraud
+                           - Mismatched addresses strongly indicate fraud 
+                           - If the address is not found in the metadata, Maximum 5 points will be deducted for both Image and Video.
                         
                         2. Structural Damage Verification:
                            - Compare reported external damage against satellite imagery
