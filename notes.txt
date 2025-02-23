@@ -1,2 +1,2 @@
 pip freeze > requirements.txt // to create the requirements.txt file
-npm install fluent-ffmpeg exifr
+npm install exifr

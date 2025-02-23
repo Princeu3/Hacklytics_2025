@@ -54,3 +54,5 @@ uvicorn==0.34.0
 yarl==1.18.3
 opencv-python==4.10.0.84
 fastapi==0.115.4
+hachoir==3.3.0
+geopy==2.4.1
