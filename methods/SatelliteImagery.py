@@ -66,3 +66,24 @@ class SatelliteDamage:
             finding = "Analysis of satellite imagery is inconclusive."
 
         return finding
+
+# Move these outside the class
+if __name__ == "__main__":
+    # Get address from PDF parsing
+    from pdf_Parsing import extract_acroform_fields
+    
+    pdf_path = "FORM-Dwelling-Property-ENG-9.2022 copy 2.pdf"
+    fields = extract_acroform_fields(pdf_path)
+    address = fields.get("physical address of the insured propertyrow1", "")
+    print(address)
+    
+    config = {
+        "roboflow_api_key": "HELG5IWgj8kH6gtq3ZE3",
+        "gmaps_api_key": "AIzaSyBImWOzs5sQJ9P2eipceflVVJhMoixLYxc",
+        "img_path": "Images and Videos/satellite_image.jpg"
+    }
+
+    sd = SatelliteDamage(config, address)
+    var = sd.run()
+    print(var)
+    
