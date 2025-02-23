@@ -4,8 +4,7 @@ from typing import List, Optional
 import os
 import shutil
 from pathlib import Path
-from datetime import datetime, timedelta
-from backend.Judge import process_files
+from backend.fraud_detector import analyze_insurance_claim
 
 app = FastAPI()
 
@@ -39,30 +38,12 @@ def clear_upload_directory():
 async def save_upload_file(upload_file: UploadFile) -> str:
     """Save an uploaded file to the temp directory and return its path"""
     try:
-        # Add timestamp to filename to avoid conflicts
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{timestamp}_{upload_file.filename}"
-        file_path = UPLOAD_DIR / filename
+        file_path = UPLOAD_DIR / upload_file.filename
         with file_path.open("wb") as buffer:
             shutil.copyfileobj(upload_file.file, buffer)
         return str(file_path)
     finally:
         await upload_file.close()
-
-def cleanup_old_files(max_age_hours: int = 24):
-    """Remove files older than specified hours"""
-    try:
-        cutoff_time = datetime.now() - timedelta(hours=max_age_hours)
-        for file in UPLOAD_DIR.glob("*"):
-            try:
-                # Get file creation time
-                creation_time = datetime.fromtimestamp(file.stat().st_ctime)
-                if creation_time < cutoff_time:
-                    file.unlink()
-            except Exception as e:
-                print(f"Error processing {file}: {e}")
-    except Exception as e:
-        print(f"Error during cleanup: {e}")
 
 @app.post("/process")
 async def process_files_endpoint(
@@ -71,7 +52,7 @@ async def process_files_endpoint(
     pdfs: Optional[List[UploadFile]] = File(None)
 ):
     """
-    Process uploaded files using the Judge function.
+    Process uploaded files using the fraud detector.
     Each type of file is optional, but at least one file should be provided.
     """
     try:
@@ -94,12 +75,24 @@ async def process_files_endpoint(
         for file in [*images, *videos, *pdfs]:
             await save_upload_file(file)
 
-        # Process the files using the existing Judge function
-        results = process_files(str(UPLOAD_DIR), API_KEY)
-
+        # Process the files using the fraud detector
+        results = analyze_insurance_claim(str(UPLOAD_DIR), API_KEY)
+        
+        # Extract fraud assessment details
+        fraud_assessment = results.get("fraud_assessment", {})
+        
         return {
             "status": "success",
-            "results": results
+            "fraud_analysis": {
+                "probability": fraud_assessment.get("fraud_probability"),
+                "risk_level": fraud_assessment.get("risk_level"),
+                "summary": fraud_assessment.get("analysis_summary"),
+                "raw_analysis": fraud_assessment.get("raw_analysis"),  # Include the complete AI reasoning
+                "key_findings": [],  # These will be populated by the frontend based on raw_analysis
+                "red_flags": [],
+                "recommendations": []
+            },
+            "claim_details": results.get("claim_processing_results", [])
         }
 
     except Exception as e:
@@ -107,12 +100,3 @@ async def process_files_endpoint(
             "status": "error",
             "message": f"Error processing files: {str(e)}"
         }
-
-# Cleanup old files periodically (every 24 hours)
-@app.on_event("startup")
-async def startup_event():
-    cleanup_old_files()
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    cleanup_old_files()

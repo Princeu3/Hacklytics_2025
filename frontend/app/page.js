@@ -10,9 +10,61 @@ import {
   faSpinner,
   faExclamationCircle,
   faCheckCircle,
-  faTrash
+  faTrash,
+  faTriangleExclamation
 } from '@fortawesome/free-solid-svg-icons';
 import { apiService } from '../utils/apiService';
+
+const RiskLevelBadge = ({ level }) => {
+  const colors = {
+    'Low': 'bg-green-100 text-green-800 border-green-200',
+    'Medium': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    'High': 'bg-red-100 text-red-800 border-red-200'
+  };
+
+  const icons = {
+    'Low': <FontAwesomeIcon icon={faCheckCircle} className="mr-2" />,
+    'Medium': <FontAwesomeIcon icon={faExclamationCircle} className="mr-2" />,
+    'High': <FontAwesomeIcon icon={faTriangleExclamation} className="mr-2" />
+  };
+
+  return (
+    <div className={`inline-flex items-center px-4 py-2 rounded-full border ${colors[level] || 'bg-gray-100 text-gray-800 border-gray-200'}`}>
+      {icons[level]}
+      {level}
+    </div>
+  );
+};
+
+const ProbabilityGauge = ({ value }) => {
+  // Calculate the angle for the gauge needle (180 degrees total range)
+  const angle = (value / 100) * 180;
+  
+  return (
+    <div className="relative w-48 h-24 mx-auto mb-4">
+      {/* Gauge background */}
+      <div className="absolute w-full h-full bg-gray-200 rounded-t-full"></div>
+      
+      {/* Colored sections */}
+      <div className="absolute w-full h-full">
+        <div className="absolute w-full h-full rounded-t-full overflow-hidden">
+          <div className="absolute w-full h-full bg-gradient-to-r from-green-500 via-yellow-500 to-red-500"></div>
+        </div>
+      </div>
+      
+      {/* Needle */}
+      <div 
+        className="absolute bottom-0 left-1/2 w-1 h-20 bg-black origin-bottom transform -translate-x-1/2"
+        style={{ transform: `rotate(${angle - 90}deg) translateX(-50%)` }}
+      ></div>
+      
+      {/* Value display */}
+      <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 -translate-y-2 text-xl font-bold">
+        {value}%
+      </div>
+    </div>
+  );
+};
 
 export default function Home() {
   const [files, setFiles] = useState({
@@ -102,12 +154,92 @@ export default function Home() {
   const renderResults = () => {
     if (!results) return null;
 
+    const fraudAnalysis = results.fraud_analysis || {};
+    
     return (
       <div className="mt-12 bg-white rounded-xl shadow-lg p-6">
-        <h2 className="text-xl font-semibold text-gray-800 mb-6">Analysis Results</h2>
-        <pre className="bg-gray-50 rounded-lg p-4 overflow-auto">
-          {JSON.stringify(results, null, 2)}
-        </pre>
+        <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Fraud Analysis Results</h2>
+        
+        {/* Fraud Analysis Summary */}
+        <div className="mb-8 p-6 bg-gray-50 rounded-lg">
+          <div className="grid md:grid-cols-2 gap-8 mb-8">
+            {/* Probability Gauge */}
+            <div className="text-center">
+              <h4 className="text-lg font-semibold text-gray-700 mb-4">Fraud Probability</h4>
+              <ProbabilityGauge value={fraudAnalysis.probability || 0} />
+            </div>
+            
+            {/* Risk Level */}
+            <div className="text-center flex flex-col justify-center">
+              <h4 className="text-lg font-semibold text-gray-700 mb-4">Risk Level</h4>
+              <div className="flex justify-center">
+                <RiskLevelBadge level={fraudAnalysis.risk_level || 'Unknown'} />
+              </div>
+            </div>
+          </div>
+
+          {/* Analysis Summary */}
+          <div className="mb-6">
+            <h4 className="text-lg font-semibold text-gray-700 mb-3">Analysis Summary</h4>
+            <p className="text-gray-600 mb-4">{fraudAnalysis.summary}</p>
+            
+            {/* AI Model Analysis */}
+            <div className="mt-6">
+              <h4 className="text-lg font-semibold text-blue-700 mb-3">AI Model Analysis</h4>
+              <div className="bg-white p-4 rounded-lg border border-gray-200 overflow-auto">
+                <pre className="whitespace-pre-wrap text-gray-700" style={{ fontFamily: 'monospace' }}>
+                  {fraudAnalysis.raw_analysis}
+                </pre>
+              </div>
+            </div>
+          </div>
+
+          {/* Additional Findings */}
+          <div className="grid md:grid-cols-2 gap-6">
+            {fraudAnalysis.key_findings?.length > 0 && (
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h4 className="font-semibold text-blue-800 mb-2">Key Findings</h4>
+                <ul className="list-disc pl-5 text-blue-700">
+                  {fraudAnalysis.key_findings.map((finding, index) => (
+                    <li key={index}>{finding}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            
+            {fraudAnalysis.red_flags?.length > 0 && (
+              <div className="bg-red-50 p-4 rounded-lg">
+                <h4 className="font-semibold text-red-800 mb-2">Red Flags</h4>
+                <ul className="list-disc pl-5 text-red-700">
+                  {fraudAnalysis.red_flags.map((flag, index) => (
+                    <li key={index}>{flag}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          {fraudAnalysis.recommendations?.length > 0 && (
+            <div className="mt-6 bg-yellow-50 p-4 rounded-lg">
+              <h4 className="font-semibold text-yellow-800 mb-2">Recommendations</h4>
+              <ul className="list-disc pl-5 text-yellow-700">
+                {fraudAnalysis.recommendations.map((rec, index) => (
+                  <li key={index}>{rec}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        {/* Claim Details */}
+        <div className="mt-8">
+          <h3 className="text-lg font-semibold text-gray-700 mb-4">Claim Processing Details</h3>
+          <div className="bg-gray-50 rounded-lg p-4 overflow-auto">
+            <pre className="whitespace-pre-wrap">
+              {JSON.stringify(results.claim_details, null, 2)}
+            </pre>
+          </div>
+        </div>
       </div>
     );
   };
